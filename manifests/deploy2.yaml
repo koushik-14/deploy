@@ -1,12 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
-  labels:
-    app: nginx
-  namespace: default
+  name: nginx-blue
+  namespace: blue
 spec:
-  replicas: 1  
+  replicas: 2
   selector:
     matchLabels:
       app: nginx
@@ -17,26 +15,34 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:stable-alpine3.17-slim  
+        image: nginx:latest
         ports:
-        - containerPort: 80  
+        - containerPort: 80
 ---
-
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
+apiVersion: v1
+kind: Service
 metadata:
-  name: nginx-rollout
-  namespace: default
+  name: nginx-service
+  namespace: blue
 spec:
-  replicas: 1
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-green
+  namespace: green
+spec:
+  replicas: 2
   selector:
     matchLabels:
-      app: nginx  
-  strategy:
-    blueGreen:
-      activeService: nginx-service
-      previewService: nginx-preview-service
-      autoPromotionEnabled: true
+      app: nginx
   template:
     metadata:
       labels:
@@ -46,33 +52,17 @@ spec:
       - name: nginx
         image: nginx:latest
         ports:
-        - containerPort: 80  
----
-
-apiVersion: v1
+        - containerPort: 80
+---apiVersion: v1
 kind: Service
 metadata:
   name: nginx-service
-  namespace: default
-spec:  
-  ports:
-  - protocol: TCP
-    port: 80 
-    targetPort: 80  
+  namespace: green
+spec:
   selector:
     app: nginx
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-preview-service
-  namespace: default
-spec:  
   ports:
   - protocol: TCP
-    port: 80 
-    targetPort: 80  
-  selector:
-    app: nginx
-      
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
